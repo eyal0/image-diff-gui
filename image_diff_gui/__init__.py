@@ -199,7 +199,7 @@ ZOOM_FACTOR=0.1
 CANVAS_SIZE=Point(500, 500)
 CANVAS_ZERO=Point(0, 0)
 
-def diff(left_filename, right_filename):
+def do_diff(left_filename, right_filename):
   """Open a window and start the program."""
   sg.theme("LightBlue")
   left = ZoomGraph(CANVAS_SIZE,
@@ -265,9 +265,9 @@ def main():
   parser.add_argument('left', help='Left image to diff')
   parser.add_argument('right', help='Right image to diff')
 
-  args, unknown = parser.parse_known_args()
+  args, _ = parser.parse_known_args()
 
-  diff(args.left, args.right)
+  do_diff(args.left, args.right)
 
 if __name__ == "__main__":
   main()
