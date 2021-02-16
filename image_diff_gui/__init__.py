@@ -2,10 +2,10 @@
 
 import tkinter as tk
 from collections import namedtuple
+import argparse
 import PySimpleGUI as sg
 import cairo
 from PIL import Image, ImageTk, ImageChops
-
 
 import gi
 gi.require_version('Rsvg', '2.0')
@@ -35,7 +35,11 @@ class SvgImage:
   """Read in svg files and create Tk PhotoImage."""
   def __init__(self, filename):
     handle = Rsvg.Handle()
-    self._svg = handle.new_from_file(filename)
+    self._svg = None
+    try:
+      self._svg = handle.new_from_file(filename)
+    except gi.repository.GLib.Error:
+      pass
     self._image = None
 
   @property
@@ -43,12 +47,16 @@ class SvgImage:
     """Returns the internal image."""
     return self._image
 
+
   def get_photo_image(self, output_dimensions, top_left=Point(0,0), bottom_right=None, lock=False):
     """Returns a TK PhotoImage.
 
     The image is translated and scaled to show just the section
     requested.
     """
+    if not self._svg:
+      self._image = Image.new("RGBA", output_dimensions)
+      return ImageTk.PhotoImage(self._image)
     surface = cairo.ImageSurface(cairo.FORMAT_ARGB32, output_dimensions.x, output_dimensions.y)
     context = cairo.Context(surface)
     # First, translate so that the top left of what we output is correct.
@@ -191,7 +199,7 @@ ZOOM_FACTOR=0.1
 CANVAS_SIZE=Point(500, 500)
 CANVAS_ZERO=Point(0, 0)
 
-def main():
+def diff(left_filename, right_filename):
   """Open a window and start the program."""
   sg.theme("LightBlue")
   left = ZoomGraph(CANVAS_SIZE,
@@ -231,12 +239,8 @@ def main():
   left.finalize()
   right.finalize()
   diff.finalize()
-  left.load_image(
-    "/home/esoha/private/pcb2gcode/testing/gerbv_example/" +
-    "multivibrator/processed_back.svg")
-  right.load_image(
-    "/home/esoha/private/pcb2gcode/testing/gerbv_example/" +
-    "multivibrator/traced_back.svg")
+  left.load_image(left_filename)
+  right.load_image(right_filename)
   diff_image = ImageChops.difference(left.image.image, right.image.image)
   diff_photo_image = ImageTk.PhotoImage(diff_image)
   diff_image_id = window['diff'].TKCanvas.create_image((0,0),anchor=tk.NW, image=diff_photo_image)
@@ -253,6 +257,17 @@ def main():
       window['diff'].set_size(((window.size[0]-diff_width)/3, window.size[1]-diff_height))
       window['right'].set_size(((window.size[0]-diff_width)/3, window.size[1]-diff_height))
   window.close()
+
+
+def main():
+  """Read args and run diff"""
+  parser = argparse.ArgumentParser(description='Diff SVG files')
+  parser.add_argument('left', help='Left image to diff')
+  parser.add_argument('right', help='Right image to diff')
+
+  args, unknown = parser.parse_known_args()
+
+  diff(args.left, args.right)
 
 if __name__ == "__main__":
   main()
