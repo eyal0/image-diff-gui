@@ -259,7 +259,6 @@ def do_diff(left_filename, right_filename):
   diff_photo_image = ImageTk.PhotoImage(diff_image)
   diff_image_id = window['diff'].TKCanvas.create_image((0,0),anchor=tk.NW, image=diff_photo_image)
 
-  print(dir(window['left_div']))
   window['left_div'].Widget.pack(expand=False)
   window['right_div'].Widget.pack(expand=False)
   window.bind('<Configure>', "Configure")
