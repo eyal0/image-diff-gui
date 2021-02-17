@@ -199,6 +199,16 @@ ZOOM_FACTOR=0.1
 CANVAS_SIZE=Point(10, 10)
 CANVAS_ZERO=Point(0, 0)
 
+def partial_filename(filename, n):
+  """Get n significant characters from a filename."""
+  if n >= len(filename):
+    return filename + (" " * (n-len(filename)))
+  if n == 0:
+    return ""
+  if n == 1:
+    return "…"
+  return "…" + filename[-(n-1):]
+
 def do_diff(left_filename, right_filename):
   """Open a window and start the program."""
   sg.theme("LightBlue")
@@ -208,7 +218,12 @@ def do_diff(left_filename, right_filename):
                    key='diff', float_values=True)
   right = ZoomGraph(CANVAS_SIZE,
                     key='right', float_values=True)
-  layout = [ [left, sg.VerticalSeparator(pad=(0,0), key="left_div"),
+  left_text = sg.Text(left_filename, key="left_text", auto_size_text=False, justification="left")
+  right_text = sg.Text(right_filename, key="right_text", auto_size_text=False, justification="right")
+  filenames = {'left': left_filename,
+               'right': right_filename }
+  layout = [ [left_text, right_text],
+             [left, sg.VerticalSeparator(pad=(0,0), key="left_div"),
               diff, sg.VerticalSeparator(pad=(0,0), key="right_div"),
               right],
              [sg.HorizontalSeparator(pad=(0,0))],
@@ -258,6 +273,16 @@ def do_diff(left_filename, right_filename):
     if event in (sg.WIN_CLOSED, "Exit"):
       break
     if event == "Configure":
+      for text in ['left', 'right']:
+        wanted_width = window.size[0]/2
+        new_filename = partial_filename(filenames[text], 0)
+        window[text + "_text"].set_size((1, None))
+        window[text + "_text"].update(new_filename)
+        while (len(new_filename) < len(filenames[text]) and
+               window[text + "_text"].Widget.winfo_reqwidth() < wanted_width):
+          new_filename = partial_filename(filenames[text], len(new_filename)+1)
+          window[text + "_text"].update(new_filename)
+          window[text + "_text"].set_size((len(new_filename), None))
       pass
   window.close()
 
