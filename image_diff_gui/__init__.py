@@ -221,22 +221,22 @@ image_differ.diff_photo_image = None
 def do_diff(left_filename, right_filename):
   """Open a window and start the program."""
   sg.theme("LightBlue")
-  left = ZoomGraph(CANVAS_SIZE,
-                   key='left', float_values=True)
-  diff = ZoomGraph(CANVAS_SIZE,
-                   key='diff', float_values=True)
-  right = ZoomGraph(CANVAS_SIZE,
-                    key='right', float_values=True)
-  left_text = sg.Text(left_filename, key="left_text",
-                      auto_size_text=False, justification="left")
-  right_text = sg.Text(right_filename, key="right_text",
-                       auto_size_text=False, justification="right")
+  zoom_graphs = {'left': ZoomGraph(CANVAS_SIZE,
+                                   key='left', float_values=True),
+                 'diff': ZoomGraph(CANVAS_SIZE,
+                                   key='diff', float_values=True),
+                 'right': ZoomGraph(CANVAS_SIZE,
+                                    key='right', float_values=True)}
+  texts = {'left': sg.Text(left_filename, key="left_text",
+                           auto_size_text=False, justification="left"),
+           'right': sg.Text(right_filename, key="right_text",
+                            auto_size_text=False, justification="right")}
   filenames = {'left': left_filename,
                'right': right_filename }
-  layout = [ [left_text, right_text],
-             [left, sg.VerticalSeparator(pad=(0,0), key="left_div"),
-              diff, sg.VerticalSeparator(pad=(0,0), key="right_div"),
-              right],
+  layout = [ [texts['left'], texts['right']],
+             [zoom_graphs['left'], sg.VerticalSeparator(pad=(0,0), key="left_div"),
+              zoom_graphs['diff'], sg.VerticalSeparator(pad=(0,0), key="right_div"),
+              zoom_graphs['right']],
              [sg.HorizontalSeparator(pad=(0,0))],
              [sg.Button('Exit')] ]
   disable_updates = False
@@ -250,29 +250,32 @@ def do_diff(left_filename, right_filename):
           other.handle_all(event)
         window['diff'].TKCanvas.itemconfig(
           diff_image_id,
-          image=image_differ(left.image.image, right.image.image))
+          image=image_differ(zoom_graphs['left'].image.image,
+                             zoom_graphs['right'].image.image))
         disable_updates = False
     return listener
-  left.register_event_listener(make_listener([right]))
-  right.register_event_listener(make_listener([left]))
-  diff.register_event_listener(make_listener([left, right]))
-  window = sg.Window('Window Title', layout, finalize=True, location=(0,0), resizable=True, size=(500,200), element_padding=(0,0))
-  left.finalize()
-  right.finalize()
-  diff.finalize()
-  left.load_image(left_filename)
-  right.load_image(right_filename)
+  zoom_graphs['left'].register_event_listener(make_listener([zoom_graphs['right']]))
+  zoom_graphs['right'].register_event_listener(make_listener([zoom_graphs['left']]))
+  zoom_graphs['diff'].register_event_listener(make_listener(
+    [zoom_graphs[x] for x in ['left', 'right']]))
+  window = sg.Window('Window Title', layout, finalize=True,
+                     location=(0,0), resizable=True, size=(500,200),
+                     element_padding=(0,0))
+  for zoom_graph in zoom_graphs.values():
+    zoom_graph.finalize()
+  for side in ['left', 'right']:
+    zoom_graphs[side].load_image(filenames[side])
   diff_image_id = window['diff'].TKCanvas.create_image(
     (0, 0),
     anchor=tk.NW,
-    image=image_differ(left.image.image, right.image.image))
+    image=image_differ(zoom_graphs['left'].image.image,
+                       zoom_graphs['right'].image.image))
 
   window['left_div'].Widget.pack(expand=False)
   window['right_div'].Widget.pack(expand=False)
   window.bind('<Configure>', "Configure")
-  window['left'].expand(True, True)
-  window['diff'].expand(True, True)
-  window['right'].expand(True, True)
+  for zoom_graph in zoom_graphs.values():
+    zoom_graph.expand(True, True)
   while True:
     event, _ = window.read(timeout=200)
     if event == sg.TIMEOUT_KEY:
