@@ -199,15 +199,24 @@ ZOOM_FACTOR=0.1
 CANVAS_SIZE=Point(10, 10)
 CANVAS_ZERO=Point(0, 0)
 
-def partial_filename(filename, n):
-  """Get n significant characters from a filename."""
-  if n >= len(filename):
-    return filename + (" " * (n-len(filename)))
-  if n == 0:
+def partial_filename(filename, chars):
+  """Get chars significant characters from a filename."""
+  if chars >= len(filename):
+    return filename + (" " * (chars-len(filename)))
+  if chars == 0:
     return ""
-  if n == 1:
+  if chars == 1:
     return "…"
-  return "…" + filename[-(n-1):]
+  return "…" + filename[-(chars-1):]
+
+def image_differ(left, right):
+  """Diff two images and return a PhotoImage."""
+  image_differ.diff_image = ImageChops.invert(ImageChops.difference(left, right).convert("RGB"))
+  image_differ.diff_photo_image = ImageTk.PhotoImage(image_differ.diff_image)
+  return image_differ.diff_photo_image
+image_differ.diff_image = None
+image_differ.diff_photo_image = None
+
 
 def do_diff(left_filename, right_filename):
   """Open a window and start the program."""
@@ -218,8 +227,10 @@ def do_diff(left_filename, right_filename):
                    key='diff', float_values=True)
   right = ZoomGraph(CANVAS_SIZE,
                     key='right', float_values=True)
-  left_text = sg.Text(left_filename, key="left_text", auto_size_text=False, justification="left")
-  right_text = sg.Text(right_filename, key="right_text", auto_size_text=False, justification="right")
+  left_text = sg.Text(left_filename, key="left_text",
+                      auto_size_text=False, justification="left")
+  right_text = sg.Text(right_filename, key="right_text",
+                       auto_size_text=False, justification="right")
   filenames = {'left': left_filename,
                'right': right_filename }
   layout = [ [left_text, right_text],
@@ -229,21 +240,17 @@ def do_diff(left_filename, right_filename):
              [sg.HorizontalSeparator(pad=(0,0))],
              [sg.Button('Exit')] ]
   disable_updates = False
-  diff_image = None
-  diff_photo_image = None
   diff_image_id = None
   def make_listener(others):
     def listener(event):
       nonlocal disable_updates
-      nonlocal diff_image
-      nonlocal diff_photo_image
       if not disable_updates:
         disable_updates = True
         for other in others:
           other.handle_all(event)
-        diff_image = ImageChops.difference(left.image.image, right.image.image)
-        diff_photo_image = ImageTk.PhotoImage(diff_image)
-        window['diff'].TKCanvas.itemconfig(diff_image_id, image=diff_photo_image)
+        window['diff'].TKCanvas.itemconfig(
+          diff_image_id,
+          image=image_differ(left.image.image, right.image.image))
         disable_updates = False
     return listener
   left.register_event_listener(make_listener([right]))
@@ -255,9 +262,10 @@ def do_diff(left_filename, right_filename):
   diff.finalize()
   left.load_image(left_filename)
   right.load_image(right_filename)
-  diff_image = ImageChops.difference(left.image.image, right.image.image)
-  diff_photo_image = ImageTk.PhotoImage(diff_image)
-  diff_image_id = window['diff'].TKCanvas.create_image((0,0),anchor=tk.NW, image=diff_photo_image)
+  diff_image_id = window['diff'].TKCanvas.create_image(
+    (0, 0),
+    anchor=tk.NW,
+    image=image_differ(left.image.image, right.image.image))
 
   window['left_div'].Widget.pack(expand=False)
   window['right_div'].Widget.pack(expand=False)
@@ -282,7 +290,6 @@ def do_diff(left_filename, right_filename):
           new_filename = partial_filename(filenames[text], len(new_filename)+1)
           window[text + "_text"].update(new_filename)
           window[text + "_text"].set_size((len(new_filename), None))
-      pass
   window.close()
 
 
