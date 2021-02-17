@@ -196,7 +196,7 @@ class ZoomGraph(sg.Graph): # pylint: disable=too-many-instance-attributes
 
 
 ZOOM_FACTOR=0.1
-CANVAS_SIZE=Point(500, 500)
+CANVAS_SIZE=Point(10, 10)
 CANVAS_ZERO=Point(0, 0)
 
 def do_diff(left_filename, right_filename):
@@ -208,9 +208,9 @@ def do_diff(left_filename, right_filename):
                    key='diff', float_values=True)
   right = ZoomGraph(CANVAS_SIZE,
                     key='right', float_values=True)
-  layout = [ [left, sg.VerticalSeparator(pad=(0,0), key="divleft"),
-              diff, sg.VerticalSeparator(pad=(0,0), key="divright"),
-             right],
+  layout = [ [left, sg.VerticalSeparator(pad=(0,0), key="left_div"),
+              diff, sg.VerticalSeparator(pad=(0,0), key="right_div"),
+              right],
              [sg.HorizontalSeparator(pad=(0,0))],
              [sg.Button('Exit')] ]
   disable_updates = False
@@ -231,11 +231,10 @@ def do_diff(left_filename, right_filename):
         window['diff'].TKCanvas.itemconfig(diff_image_id, image=diff_photo_image)
         disable_updates = False
     return listener
-
   left.register_event_listener(make_listener([right]))
   right.register_event_listener(make_listener([left]))
   diff.register_event_listener(make_listener([left, right]))
-  window = sg.Window('Window Title', layout, finalize=True, location=(0,0), resizable=True)
+  window = sg.Window('Window Title', layout, finalize=True, location=(0,0), resizable=True, size=(500,200), element_padding=(0,0))
   left.finalize()
   right.finalize()
   diff.finalize()
@@ -244,18 +243,22 @@ def do_diff(left_filename, right_filename):
   diff_image = ImageChops.difference(left.image.image, right.image.image)
   diff_photo_image = ImageTk.PhotoImage(diff_image)
   diff_image_id = window['diff'].TKCanvas.create_image((0,0),anchor=tk.NW, image=diff_photo_image)
-  diff_height = window.size[1] - CANVAS_SIZE[1]
-  diff_width = window.size[0] - CANVAS_SIZE[0]*3
 
+  print(dir(window['left_div']))
+  window['left_div'].Widget.pack(expand=False)
+  window['right_div'].Widget.pack(expand=False)
   window.bind('<Configure>', "Configure")
+  window['left'].expand(True, True)
+  window['diff'].expand(True, True)
+  window['right'].expand(True, True)
   while True:
-    event, _ = window.read()
+    event, _ = window.read(timeout=200)
+    if event == sg.TIMEOUT_KEY:
+      continue
     if event in (sg.WIN_CLOSED, "Exit"):
       break
     if event == "Configure":
-      window['left'].set_size(((window.size[0]-diff_width)/3, window.size[1]-diff_height))
-      window['diff'].set_size(((window.size[0]-diff_width)/3, window.size[1]-diff_height))
-      window['right'].set_size(((window.size[0]-diff_width)/3, window.size[1]-diff_height))
+      pass
   window.close()
 
 
