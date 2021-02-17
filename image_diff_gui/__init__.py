@@ -209,9 +209,11 @@ def partial_filename(filename, chars):
     return "…"
   return "…" + filename[-(chars-1):]
 
-def image_differ(left, right):
+def image_differ(left, right, remove_alpha):
   """Diff two images and return a PhotoImage."""
-  image_differ.diff_image = ImageChops.invert(ImageChops.difference(left, right).convert("RGB"))
+  image_differ.diff_image = ImageChops.difference(left, right)
+  if remove_alpha:
+    image_differ.diff_image = ImageChops.invert(image_differ.diff_image.convert("RGB"))
   image_differ.diff_photo_image = ImageTk.PhotoImage(image_differ.diff_image)
   return image_differ.diff_photo_image
 image_differ.diff_image = None
@@ -233,12 +235,13 @@ def do_diff(left_filename, right_filename):
                             auto_size_text=False, justification="right")}
   filenames = {'left': left_filename,
                'right': right_filename }
+  remove_alpha = sg.Checkbox('Remove alpha', True, key="remove_alpha")
   layout = [ [texts['left'], texts['right']],
              [zoom_graphs['left'], sg.VerticalSeparator(pad=(0,0), key="left_div"),
               zoom_graphs['diff'], sg.VerticalSeparator(pad=(0,0), key="right_div"),
               zoom_graphs['right']],
              [sg.HorizontalSeparator(pad=(0,0))],
-             [sg.Button('Exit')] ]
+             [sg.Button('Exit'), remove_alpha] ]
   disable_updates = False
   diff_image_id = None
   def make_listener(others):
@@ -251,7 +254,8 @@ def do_diff(left_filename, right_filename):
         window['diff'].TKCanvas.itemconfig(
           diff_image_id,
           image=image_differ(zoom_graphs['left'].image.image,
-                             zoom_graphs['right'].image.image))
+                             zoom_graphs['right'].image.image,
+                             window['remove_alpha'].get()))
         disable_updates = False
     return listener
   zoom_graphs['left'].register_event_listener(make_listener([zoom_graphs['right']]))
@@ -259,8 +263,14 @@ def do_diff(left_filename, right_filename):
   zoom_graphs['diff'].register_event_listener(make_listener(
     [zoom_graphs[x] for x in ['left', 'right']]))
   window = sg.Window('Window Title', layout, finalize=True,
-                     location=(0,0), resizable=True, size=(500,200),
+                     location=(0,0), resizable=True, size=(800,400),
                      element_padding=(0,0))
+  remove_alpha.Widget.configure(
+    command=lambda: window['diff'].TKCanvas.itemconfig(
+      diff_image_id,
+      image=image_differ(zoom_graphs['left'].image.image,
+                         zoom_graphs['right'].image.image,
+                         window['remove_alpha'].get())))
   for zoom_graph in zoom_graphs.values():
     zoom_graph.finalize()
   for side in ['left', 'right']:
@@ -269,7 +279,8 @@ def do_diff(left_filename, right_filename):
     (0, 0),
     anchor=tk.NW,
     image=image_differ(zoom_graphs['left'].image.image,
-                       zoom_graphs['right'].image.image))
+                       zoom_graphs['right'].image.image,
+                       window['remove_alpha'].get()))
 
   window['left_div'].Widget.pack(expand=False)
   window['right_div'].Widget.pack(expand=False)
@@ -277,7 +288,7 @@ def do_diff(left_filename, right_filename):
   for zoom_graph in zoom_graphs.values():
     zoom_graph.expand(True, True)
   while True:
-    event, _ = window.read(timeout=200)
+    event, _ = window.read()
     if event == sg.TIMEOUT_KEY:
       continue
     if event in (sg.WIN_CLOSED, "Exit"):
