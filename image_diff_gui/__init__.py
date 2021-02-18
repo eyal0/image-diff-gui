@@ -3,6 +3,9 @@
 import tkinter as tk
 from collections import namedtuple
 import argparse
+import os
+import sys
+
 import PySimpleGUI as sg
 import cairo
 from PIL import Image, ImageTk, ImageChops
@@ -34,12 +37,11 @@ Point.from_tuple = lambda p: Point(p[0], p[1])
 class SvgImage:
   """Read in svg files and create Tk PhotoImage."""
   def __init__(self, filename):
+    if os.stat(filename).st_size == 0:
+      self._svg = None
+      return
     handle = Rsvg.Handle()
-    self._svg = None
-    try:
-      self._svg = handle.new_from_file(filename)
-    except gi.repository.GLib.Error:
-      pass
+    self._svg = handle.new_from_file(filename)
     self._image = None
 
   @property
@@ -139,6 +141,15 @@ class ZoomGraph(sg.Graph): # pylint: disable=too-many-instance-attributes
 
   def finalize(self):
     """Bind all the events needed to make this work."""
+    if self._image:
+      # Mustn't let the image get garbage collected or it will disappear
+      # from the canvas.
+      self._photo_image = self._image.get_photo_image(
+        Point.from_tuple(self.get_size()),
+        Point(0,0),
+        Point.from_tuple(self.get_size()))
+      self._image_id = self.TKCanvas.create_image((0,0),anchor=tk.NW,
+                                                  image=self._photo_image)
     self._previous_size = Point.from_tuple(self.get_size())
     self.TKCanvas.bind('<Button-4>', self.handle_all)
     self.TKCanvas.bind('<Button-5>', self.handle_all)
@@ -154,14 +165,7 @@ class ZoomGraph(sg.Graph): # pylint: disable=too-many-instance-attributes
   def load_image(self, filename):
     """Sets the image and displays it."""
     self._image = SvgImage(filename)
-    # Mustn't let the image get garbage collected or it will disappear
-    # from the canvas.
-    self._photo_image = self._image.get_photo_image(
-      Point.from_tuple(self.get_size()),
-      Point(0,0),
-      Point.from_tuple(self.get_size()))
-    self._image_id = self.TKCanvas.create_image((0,0),anchor=tk.NW,
-                                                image=self._photo_image)
+
   def zoom(self, position, factor):
     """Zooms the image coordinates.
 
@@ -262,6 +266,8 @@ def do_diff(left_filename, right_filename):
   zoom_graphs['right'].register_event_listener(make_listener([zoom_graphs['left']]))
   zoom_graphs['diff'].register_event_listener(make_listener(
     [zoom_graphs[x] for x in ['left', 'right']]))
+  for side in ['left', 'right']:
+    zoom_graphs[side].load_image(filenames[side])
   window = sg.Window('Window Title', layout, finalize=True,
                      location=(0,0), resizable=True, size=(800,400),
                      element_padding=(0,0))
@@ -273,8 +279,6 @@ def do_diff(left_filename, right_filename):
                          window['remove_alpha'].get())))
   for zoom_graph in zoom_graphs.values():
     zoom_graph.finalize()
-  for side in ['left', 'right']:
-    zoom_graphs[side].load_image(filenames[side])
   diff_image_id = window['diff'].TKCanvas.create_image(
     (0, 0),
     anchor=tk.NW,
@@ -314,8 +318,12 @@ def main():
   parser.add_argument('right', help='Right image to diff')
 
   args, _ = parser.parse_known_args()
+  try:
+    do_diff(args.left, args.right)
+  except FileNotFoundError as err:
+    print(f'{os.path.basename(sys.argv[0])}: {err.filename}: No such file')
+    return 2
 
-  do_diff(args.left, args.right)
 
 if __name__ == "__main__":
   main()
