@@ -135,9 +135,12 @@ class ZoomGraph(sg.Graph): # pylint: disable=too-many-instance-attributes
   def handle_resize(self, _):
     """Callback for resize events of the ZoomGraph."""
     zoom_scale = (self._bottom_right - self._top_left) / self._previous_size
-    self._bottom_right += zoom_scale*(Point.from_tuple(self.get_size()) - self._previous_size)
-    self._previous_size = Point.from_tuple(self.get_size())
+    self._bottom_right += zoom_scale*(self.get_size() - self._previous_size)
+    self._previous_size = self.get_size()
     self._update()
+
+  def get_size(self):
+    return Point.from_tuple(super().get_size())
 
   def finalize(self):
     """Bind all the events needed to make this work."""
@@ -145,12 +148,12 @@ class ZoomGraph(sg.Graph): # pylint: disable=too-many-instance-attributes
       # Mustn't let the image get garbage collected or it will disappear
       # from the canvas.
       self._photo_image = self._image.get_photo_image(
-        Point.from_tuple(self.get_size()),
+        self.get_size(),
         Point(0,0),
-        Point.from_tuple(self.get_size()))
+        self.get_size())
       self._image_id = self.TKCanvas.create_image((0,0),anchor=tk.NW,
                                                   image=self._photo_image)
-    self._previous_size = Point.from_tuple(self.get_size())
+    self._previous_size = self.get_size()
     self.TKCanvas.bind('<Button-4>', self.handle_all)
     self.TKCanvas.bind('<Button-5>', self.handle_all)
     self.TKCanvas.bind('<B1-Motion>', self.handle_all)
@@ -172,7 +175,7 @@ class ZoomGraph(sg.Graph): # pylint: disable=too-many-instance-attributes
     The position is the location that will stay in place after the
     zoom.  The factor can be negative.
     """
-    ratio = (position - Point(0,0)) / (Point.from_tuple(self.get_size()) - Point(0,0))
+    ratio = (position - Point(0,0)) / (self.get_size() - Point(0,0))
     (self._top_left, self._bottom_right) = (
       self._top_left + factor*ratio*(self._bottom_right - self._top_left),
       self._bottom_right + factor*(1-ratio)*(self._bottom_right - self._top_left))
@@ -185,7 +188,7 @@ class ZoomGraph(sg.Graph): # pylint: disable=too-many-instance-attributes
     already zoomed, this function will take care of it.
     """
     # Need to scale the drag amounts by the current zoom.
-    zoom_scale = (self._bottom_right - self._top_left) / Point.from_tuple(self.get_size())
+    zoom_scale = (self._bottom_right - self._top_left) / self.get_size()
     delta = zoom_scale * delta
     self._top_left -= delta
     self._bottom_right -= delta
@@ -193,7 +196,7 @@ class ZoomGraph(sg.Graph): # pylint: disable=too-many-instance-attributes
 
   def _update(self):
     if self._image:
-      self._photo_image = self._image.get_photo_image(Point.from_tuple(self.get_size()),
+      self._photo_image = self._image.get_photo_image(self.get_size(),
                                                       self._top_left,
                                                       self._bottom_right)
       self.TKCanvas.itemconfig(self._image_id, image=self._photo_image)
