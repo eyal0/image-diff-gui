@@ -388,8 +388,12 @@ def main():
   parser = argparse.ArgumentParser(description='Diff SVG files')
   parser.add_argument('left', help='Left image to diff')
   parser.add_argument('right', help='Right image to diff')
+  parser.add_argument('--dry_run', action='store_true', default=False,
+                      help='Exit immediately, tesing just the imports.')
 
   args, _ = parser.parse_known_args()
+  if args.dry_run:
+    return 0
   config = read_config()
   try:
     do_diff(args.left, args.right, config)
