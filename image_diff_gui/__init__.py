@@ -6,6 +6,7 @@ import argparse
 import os
 import sys
 
+import yaml
 import PySimpleGUI as sg
 import cairo
 from PIL import Image, ImageTk, ImageChops
@@ -233,7 +234,7 @@ image_differ.diff_image = None
 image_differ.diff_photo_image = None
 
 
-def do_diff(left_filename, right_filename):
+def do_diff(left_filename, right_filename, config):
   """Open a window and start the program."""
   sg.theme("LightBlue")
   zoom_graphs = {'left': ZoomGraph(CANVAS_SIZE,
@@ -248,7 +249,7 @@ def do_diff(left_filename, right_filename):
                             auto_size_text=False, justification="right")}
   filenames = {'left': left_filename,
                'right': right_filename }
-  remove_alpha = sg.Checkbox('Remove alpha', True, key="remove_alpha")
+  remove_alpha = sg.Checkbox('Remove alpha', config["remove_alpha"], key="remove_alpha")
   layout = [ [texts['left'], texts['right']],
              [zoom_graphs['left'], sg.VerticalSeparator(pad=(0,0), key="left_div"),
               zoom_graphs['diff'], sg.VerticalSeparator(pad=(0,0), key="right_div"),
@@ -278,14 +279,18 @@ def do_diff(left_filename, right_filename):
   for side in ['left', 'right']:
     zoom_graphs[side].load_image(filenames[side])
   window = sg.Window('Window Title', layout, finalize=True,
-                     location=(0,0), resizable=True, size=(800,400),
-                     element_padding=(0,0))
-  remove_alpha.Widget.configure(
-    command=lambda: window['diff'].TKCanvas.itemconfig(
+                     resizable=True,
+                     location=Point.from_tuple(config['window_position']),
+                     size=Point.from_tuple(config['window_size']))
+  def remove_alpha_changed():
+    window['diff'].TKCanvas.itemconfig(
       diff_image_id,
       image=image_differ(zoom_graphs['left'].image.image,
                          zoom_graphs['right'].image.image,
-                         window['remove_alpha'].get())))
+                         window['remove_alpha'].get()))
+    config["remove_alpha"] = window["remove_alpha"].get()
+    print(config)
+  remove_alpha.Widget.configure(command=remove_alpha_changed)
   for zoom_graph in zoom_graphs.values():
     zoom_graph.finalize()
   diff_image_id = window['diff'].TKCanvas.create_image(
@@ -308,6 +313,8 @@ def do_diff(left_filename, right_filename):
     if event in (sg.WIN_CLOSED, "Exit"):
       break
     if event == "Configure":
+      config['window_position'] = window.current_location()
+      config['window_size'] = window.size
       configure_count += 1
       if configure_count == 4: # Seems like 4 is working.
         max_zoom = 1
@@ -337,18 +344,59 @@ def do_diff(left_filename, right_filename):
   window.close()
 
 
+def read_config():
+  """Reads the config file and returns the configuration.
+
+  If the config file can't be opened, silently ignore and return
+  defaults.
+  """
+  config = {
+    "window_size": (800, 400),
+    "window_position": (0, 0),
+    "remove_alpha": 0
+  }
+  try:
+    with open(os.path.join(os.path.expanduser("~"),
+                           ".config",
+                           "image-diff-gui.yaml")) as config_file:
+      config.update(yaml.safe_load(config_file.read()))
+  except FileNotFoundError:
+    pass
+  return config
+
+
+def write_config(config):
+  """Writes the config file.
+
+  If the config file can't be written, silently ignore.
+  """
+  old_config = read_config()
+  if old_config == config:
+    return
+  try:
+    with open(os.path.join(os.path.expanduser("~"),
+                           ".config",
+                           "image-diff-gui.yaml"), "w") as config_file:
+      config_file.write(yaml.safe_dump(config))
+  except FileNotFoundError:
+    pass
+
+
 def main():
+
   """Read args and run diff"""
   parser = argparse.ArgumentParser(description='Diff SVG files')
   parser.add_argument('left', help='Left image to diff')
   parser.add_argument('right', help='Right image to diff')
 
   args, _ = parser.parse_known_args()
+  config = read_config()
   try:
-    do_diff(args.left, args.right)
+    do_diff(args.left, args.right, config)
   except FileNotFoundError as err:
     print(f'{os.path.basename(sys.argv[0])}: {err.filename}: No such file', file=sys.stderr)
     return 2
+  write_config(config)
   return 0
 
 
