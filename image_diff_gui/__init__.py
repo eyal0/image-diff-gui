@@ -324,8 +324,9 @@ def main():
   try:
     do_diff(args.left, args.right)
   except FileNotFoundError as err:
-    print(f'{os.path.basename(sys.argv[0])}: {err.filename}: No such file')
+    print(f'{os.path.basename(sys.argv[0])}: {err.filename}: No such file', file=sys.stderr)
     return 2
+  return 0
 
 
 if __name__ == "__main__":
