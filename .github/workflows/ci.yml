@@ -1,0 +1,33 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+  schedule:
+    - cron: '5 4 * * 1'
+
+jobs:
+  build:
+    name: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu]
+    runs-on: ${{ matrix.os }}-latest
+
+    steps:
+    - name: Checkout source
+      uses: actions/checkout@v2
+    - name: Setup python3
+      uses: actions/setup-python@v2
+      with:
+        python-version: '3.x'
+    - name: Install system dependencies
+      run: sudo apt-get install gir1.2-rsvg-2.0 python3-cairo python3-gi-cairo python3-gi libcairo2-dev gir1.2-gtk-3.0 libgirepository1.0-dev
+    - name: Install image-diff-gui
+      run: pip install .
+    - name: Run image-diff-gui
+      run: |
+        hash -r
+        image-diff-gui --dry_run /dev/null /dev/null
