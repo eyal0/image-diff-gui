@@ -49,6 +49,12 @@ class SvgImage:
     """Returns the internal image."""
     return self._image
 
+  def get_size(self):
+    """Returns the original size of the SVG image."""
+    if self._svg:
+      dimensions = self._svg.get_dimensions()
+      return Point(dimensions.em, dimensions.ex)
+    return None
 
   def get_photo_image(self, output_dimensions, top_left=Point(0,0), bottom_right=None, lock=False):
     """Returns a TK PhotoImage.
@@ -294,13 +300,30 @@ def do_diff(left_filename, right_filename):
   window.bind('<Configure>', "Configure")
   for zoom_graph in zoom_graphs.values():
     zoom_graph.expand(True, True)
+  configure_count = 0
   while True:
-    event, _ = window.read()
+    event, _ = window.read(timeout=200)
     if event == sg.TIMEOUT_KEY:
       continue
     if event in (sg.WIN_CLOSED, "Exit"):
       break
     if event == "Configure":
+      configure_count += 1
+      if configure_count == 4: # Seems like 4 is working.
+        max_zoom = 1
+        for side in ['left', 'right']:
+          if zoom_graphs[side].image.get_size():
+            if zoom_graphs[side].image.get_size().x / zoom_graphs[side].get_size().x > max_zoom:
+              max_zoom = zoom_graphs[side].image.get_size().x / zoom_graphs[side].get_size().x
+            if zoom_graphs[side].image.get_size().y / zoom_graphs[side].get_size().y > max_zoom:
+              max_zoom = zoom_graphs[side].image.get_size().y / zoom_graphs[side].get_size().y
+        for side in ['left', 'right']:
+          zoom_graphs[side].zoom(Point(0,0), -max_zoom + 1)
+        window['diff'].TKCanvas.itemconfig(
+          diff_image_id,
+          image=image_differ(zoom_graphs['left'].image.image,
+                             zoom_graphs['right'].image.image,
+                             window['remove_alpha'].get()))
       for text in ['left', 'right']:
         wanted_width = window.size[0]/2
         new_filename = partial_filename(filenames[text], 0)
