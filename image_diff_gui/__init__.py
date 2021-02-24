@@ -304,7 +304,7 @@ def do_diff(left_filename, right_filename, config):
   window.bind('<Configure>', "Configure")
   for zoom_graph in zoom_graphs.values():
     zoom_graph.expand(True, True)
-  configure_count = 0
+  zoom_done = False
   while True:
     event, _ = window.read(timeout=200)
     if event == sg.TIMEOUT_KEY:
@@ -314,8 +314,8 @@ def do_diff(left_filename, right_filename, config):
     if event == "Configure":
       config['window_position'] = window.current_location()
       config['window_size'] = window.size
-      configure_count += 1
-      if configure_count == 4: # Seems like 4 is working.
+      if not zoom_done and zoom_graphs[side].get_size() != CANVAS_SIZE:
+        zoom_done = True
         max_zoom = -float("inf")
         for side in ['left', 'right']:
           if zoom_graphs[side].image.get_size():
