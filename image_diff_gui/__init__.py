@@ -289,7 +289,6 @@ def do_diff(left_filename, right_filename, config):
                          zoom_graphs['right'].image.image,
                          window['remove_alpha'].get()))
     config["remove_alpha"] = window["remove_alpha"].get()
-    print(config)
   remove_alpha.Widget.configure(command=remove_alpha_changed)
   for zoom_graph in zoom_graphs.values():
     zoom_graph.finalize()
@@ -317,7 +316,7 @@ def do_diff(left_filename, right_filename, config):
       config['window_size'] = window.size
       configure_count += 1
       if configure_count == 4: # Seems like 4 is working.
-        max_zoom = 1
+        max_zoom = -float("inf")
         for side in ['left', 'right']:
           if zoom_graphs[side].image.get_size():
             if zoom_graphs[side].image.get_size().x / zoom_graphs[side].get_size().x > max_zoom:
