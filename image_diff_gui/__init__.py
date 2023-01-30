@@ -302,6 +302,7 @@ def do_diff(left_filename, right_filename, config):
   window['left_div'].Widget.pack(expand=False)
   window['right_div'].Widget.pack(expand=False)
   window.bind('<Configure>', "Configure")
+  window.bind('<Control-q>', "Exit")
   for zoom_graph in zoom_graphs.values():
     zoom_graph.expand(True, True)
   zoom_done = False
