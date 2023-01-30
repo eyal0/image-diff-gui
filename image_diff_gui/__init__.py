@@ -234,7 +234,7 @@ image_differ.diff_image = None
 image_differ.diff_photo_image = None
 
 
-def do_diff(left_filename, right_filename, config):
+def do_diff(left_filename, right_filename, left_label, right_label, config):
   """Open a window and start the program."""
   sg.theme("LightBlue")
   zoom_graphs = {'left': ZoomGraph(CANVAS_SIZE,
@@ -243,12 +243,12 @@ def do_diff(left_filename, right_filename, config):
                                    key='diff', float_values=True),
                  'right': ZoomGraph(CANVAS_SIZE,
                                     key='right', float_values=True)}
-  texts = {'left': sg.Text(left_filename, key="left_text",
+  texts = {'left': sg.Text(left_label, key="left_text",
                            auto_size_text=False, justification="left"),
-           'right': sg.Text(right_filename, key="right_text",
+           'right': sg.Text(right_label, key="right_text",
                             auto_size_text=False, justification="right")}
-  filenames = {'left': left_filename,
-               'right': right_filename }
+  filenames = {'left': (left_filename, left_label),
+               'right': (right_filename, right_label)}
   remove_alpha = sg.Checkbox('Remove alpha', config["remove_alpha"], key="remove_alpha")
   layout = [ [texts['left'], texts['right']],
              [zoom_graphs['left'], sg.VerticalSeparator(pad=(0,0), key="left_div"),
@@ -277,7 +277,7 @@ def do_diff(left_filename, right_filename, config):
   zoom_graphs['diff'].register_event_listener(make_listener(
     [zoom_graphs[x] for x in ['left', 'right']]))
   for side in ['left', 'right']:
-    zoom_graphs[side].load_image(filenames[side])
+    zoom_graphs[side].load_image(filenames[side][0])
   window = sg.Window('Window Title', layout, finalize=True,
                      resizable=True,
                      location=Point.from_tuple(config['window_position']),
@@ -333,12 +333,12 @@ def do_diff(left_filename, right_filename, config):
                              window['remove_alpha'].get()))
       for text in ['left', 'right']:
         wanted_width = window.size[0]/2
-        new_filename = partial_filename(filenames[text], 0)
+        new_filename = partial_filename(filenames[text][1], 0)
         window[text + "_text"].set_size((1, None))
         window[text + "_text"].update(new_filename)
-        while (len(new_filename) < len(filenames[text]) and
+        while (len(new_filename) < len(filenames[text][1]) and
                window[text + "_text"].Widget.winfo_reqwidth() < wanted_width):
-          new_filename = partial_filename(filenames[text], len(new_filename)+1)
+          new_filename = partial_filename(filenames[text][1], len(new_filename)+1)
           window[text + "_text"].update(new_filename)
           window[text + "_text"].set_size((len(new_filename), None))
   window.close()
@@ -390,13 +390,18 @@ def main():
   parser.add_argument('right', help='Right image to diff')
   parser.add_argument('--dry_run', action='store_true', default=False,
                       help='Exit immediately, tesing just the imports.')
+  parser.add_argument('--label', metavar='LABEL', action='append',
+                      help='use LABEL instead of file name (can be repeated)')
 
-  args, _ = parser.parse_known_args()
+  args = parser.parse_args()
   if args.dry_run:
     return 0
   config = read_config()
   try:
-    do_diff(args.left, args.right, config)
+    do_diff(args.left, args.right,
+            args.label[0] if args.label and len(args.label) > 0 else args.left,
+            args.label[1] if args.label and len(args.label) > 1 else args.right,
+            config)
   except FileNotFoundError as err:
     print(f'{os.path.basename(sys.argv[0])}: {err.filename}: No such file', file=sys.stderr)
     return 2
